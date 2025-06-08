@@ -4,7 +4,7 @@ Extension VSCode để trực quan hóa mối quan hệ import/require giữa c�
 
 ## Demo
 
-![Import Map Explorer Demo](https://raw.githubusercontent.com/LampardNguyen/import-map-explorer/main/images/import-export.gif)
+![Import Map Explorer Demo](https://github.com/LampardNguyen/import-map-explorer/blob/main/images/import-export.gif?raw=true)
 
 
 ## Tính năng
