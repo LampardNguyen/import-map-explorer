@@ -1,0 +1,86 @@
+{
+  "name": "import-map-explorer",
+  "displayName": "Import Map Explorer",
+  "description": "Visualize import/require relationships between files in your project as an interactive map",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "import",
+    "dependency",
+    "visualization",
+    "map",
+    "relationship"
+  ],
+  "activationEvents": [
+    "onCommand:importMapExplorer.showMap"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "importMapExplorer.showMap",
+        "title": "Show Import Map",
+        "category": "Import Map Explorer"
+      },
+      {
+        "command": "importMapExplorer.showCurrentFileMap",
+        "title": "Show Current File Import Map",
+        "category": "Import Map Explorer"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "importMapExplorer.showCurrentFileMap",
+          "when": "resourceExtname =~ /\\.(ts|js|tsx|jsx|vue|svelte)$/",
+          "group": "navigation"
+        },
+        {
+          "command": "importMapExplorer.showMap",
+          "when": "resourceExtname =~ /\\.(ts|js|tsx|jsx|vue|svelte)$/",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "importMapExplorer.showCurrentFileMap",
+          "when": "resourceExtname =~ /\\.(ts|js|tsx|jsx|vue|svelte)$/",
+          "group": "navigation"
+        },
+        {
+          "command": "importMapExplorer.showMap",
+          "when": "resourceExtname =~ /\\.(ts|js|tsx|jsx|vue|svelte)$/",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "importMapExplorer.showCurrentFileMap",
+        "key": "ctrl+shift+m",
+        "mac": "cmd+shift+m",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.23.0",
+    "@typescript-eslint/parser": "^6.0.0"
+  }
+} 
