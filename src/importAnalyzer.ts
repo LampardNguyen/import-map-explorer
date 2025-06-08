@@ -3,6 +3,16 @@ import * as path from 'path';
 import { ImportMap, FileNode, ImportInfo } from './types';
 
 /**
+ * Project type detection
+ */
+enum ProjectType {
+    TYPESCRIPT = 'typescript',
+    JAVASCRIPT_COMMONJS = 'javascript-commonjs',
+    JAVASCRIPT_ES6 = 'javascript-es6',
+    MIXED = 'mixed'
+}
+
+/**
  * GitignoreParser handles parsing .gitignore patterns and checking if files should be ignored
  */
 class GitignoreParser {
@@ -125,12 +135,22 @@ class GitignoreParser {
 }
 
 export class ImportAnalyzer {
-    private supportedExtensions = ['.ts', '.tsx', '.vue', '.svelte'];
+    private supportedExtensions: string[] = [];
+    private projectType: ProjectType = ProjectType.MIXED;
     private gitignoreParser: GitignoreParser | null = null;
+    private projectRoot: string = '';
+    private nuxtSrcDir: string = 'src'; // Default srcDir for Nuxt
 
     async analyzeProject(projectRoot: string): Promise<ImportMap> {
-        // Initialize gitignore parser
+        // Initialize project analysis
+        this.projectRoot = projectRoot;
+        this.nuxtSrcDir = this.detectNuxtSrcDir(projectRoot);
+        this.projectType = this.detectProjectType(projectRoot);
+        this.supportedExtensions = this.getSupportedExtensions();
         this.gitignoreParser = new GitignoreParser(projectRoot);
+        
+        console.log(`🔍 Detected project type: ${this.projectType}`);
+        console.log(`📁 Supported extensions: ${this.supportedExtensions.join(', ')}`);
         
         const files = new Map<string, FileNode>();
         const allFiles = this.getAllFiles(projectRoot);
@@ -174,8 +194,15 @@ export class ImportAnalyzer {
     async analyzeFile(filePath: string, projectRoot: string): Promise<ImportMap> {
         console.log(`🎯 Analyzing 2-level imports for: ${path.basename(filePath)}`);
         
-        // Initialize gitignore parser
+        // Initialize project analysis
+        this.projectRoot = projectRoot;
+        this.nuxtSrcDir = this.detectNuxtSrcDir(projectRoot);
+        this.projectType = this.detectProjectType(projectRoot);
+        this.supportedExtensions = this.getSupportedExtensions();
         this.gitignoreParser = new GitignoreParser(projectRoot);
+        
+        console.log(`🔍 Detected project type: ${this.projectType}`);
+        console.log(`📁 Supported extensions: ${this.supportedExtensions.join(', ')}`);
         
         const files = new Map<string, FileNode>();
         
@@ -236,7 +263,80 @@ export class ImportAnalyzer {
         return { files, entryFile: filePath };
     }
 
+    /**
+     * Detect Nuxt.js srcDir from nuxt.config file
+     */
+    private detectNuxtSrcDir(projectRoot: string): string {
+        // Check for different Nuxt config file variations
+        const configFiles = [
+            'nuxt.config.ts',
+            'nuxt.config.js',
+            'nuxt.config.mjs'
+        ];
 
+        for (const configFile of configFiles) {
+            const configPath = path.join(projectRoot, configFile);
+            if (fs.existsSync(configPath)) {
+                try {
+                    const content = fs.readFileSync(configPath, 'utf-8');
+                    const srcDir = this.parseNuxtSrcDir(content);
+                    if (srcDir) {
+                        console.log(`🔧 Detected Nuxt srcDir from ${configFile}: ${srcDir}`);
+                        return srcDir;
+                    }
+                } catch (error) {
+                    console.log(`⚠️  Could not parse ${configFile}:`, error);
+                }
+            }
+        }
+
+        // Fallback: check if src/ directory exists, otherwise use current directory
+        const srcPath = path.join(projectRoot, 'src');
+        if (fs.existsSync(srcPath) && fs.statSync(srcPath).isDirectory()) {
+            console.log(`📁 Using default srcDir: src`);
+            return 'src';
+        }
+
+        console.log(`📁 Using project root as srcDir`);
+        return '.';
+    }
+
+    /**
+     * Parse srcDir from Nuxt config content using regex
+     */
+    private parseNuxtSrcDir(content: string): string | null {
+        // Remove comments and normalize whitespace
+        const cleanContent = content
+            .replace(/\/\*[\s\S]*?\*\//g, '') // Remove /* */ comments
+            .replace(/\/\/.*$/gm, '') // Remove // comments
+            .replace(/\s+/g, ' '); // Normalize whitespace
+
+        // Match srcDir patterns
+        const patterns = [
+            /srcDir\s*:\s*['"`]([^'"`]+)['"`]/,
+            /srcDir\s*:\s*'([^']+)'/,
+            /srcDir\s*:\s*"([^"]+)"/,
+            /srcDir\s*:\s*`([^`]+)`/
+        ];
+
+        for (const pattern of patterns) {
+            const match = cleanContent.match(pattern);
+            if (match && match[1]) {
+                let srcDir = match[1].trim();
+                // Remove trailing slash
+                if (srcDir.endsWith('/')) {
+                    srcDir = srcDir.slice(0, -1);
+                }
+                // Handle empty or root cases
+                if (srcDir === '' || srcDir === './') {
+                    return '.';
+                }
+                return srcDir;
+            }
+        }
+
+        return null;
+    }
 
     private async analyzeFileRecursive(
         filePath: string,
@@ -254,15 +354,27 @@ export class ImportAnalyzer {
         if (fileNode) {
             files.set(filePath, fileNode);
 
-            // Recursively analyze imported files
+            // Recursively analyze imported files and update bidirectional relationships
             for (const importInfo of fileNode.imports) {
                 if (!importInfo.isNodeModule && importInfo.resolvedPath) {
+                    // Analyze the file recursively if not visited yet
                     await this.analyzeFileRecursive(
                         importInfo.resolvedPath,
                         projectRoot,
                         files,
                         visited
                     );
+                    
+                    // Update bidirectional relationship: the imported file should know who imports it  
+                    const importedFile = files.get(importInfo.resolvedPath);
+                    if (importedFile) {
+                        if (!importedFile.importedBy.includes(filePath)) {
+                            importedFile.importedBy.push(filePath);
+                            console.log(`📝 Updated bidirectional: ${path.basename(importInfo.resolvedPath)} ← ${path.basename(filePath)}`);
+                        }
+                    } else {
+                        console.log(`⚠️  No imported file found in map: ${importInfo.resolvedPath}`);
+                    }
                 }
             }
         }
@@ -290,10 +402,35 @@ export class ImportAnalyzer {
         const imports: ImportInfo[] = [];
         const fileDir = path.dirname(filePath);
 
+        // For Vue files, extract script content first
+        let scriptContent = content;
+        if (filePath.endsWith('.vue')) {
+            scriptContent = this.extractVueScriptContent(content);
+        }
+
         // Use regex-based parsing (more reliable for this use case)
-        imports.push(...this.extractImportsWithRegex(content, fileDir, projectRoot));
+        imports.push(...this.extractImportsWithRegex(scriptContent, fileDir, projectRoot));
 
         return imports;
+    }
+
+    /**
+     * Extract script content from Vue Single File Component
+     */
+    private extractVueScriptContent(content: string): string {
+        // Match <script> tags with various attributes
+        const scriptPattern = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+        const matches = content.match(scriptPattern);
+        
+        if (!matches) {
+            return '';
+        }
+
+        // Combine all script blocks (there might be multiple)
+        return matches.map(match => {
+            // Remove <script> tags and extract content
+            return match.replace(/<script[^>]*>|<\/script>/gi, '');
+        }).join('\n');
     }
 
     private extractImportsWithRegex(content: string, fileDir: string, projectRoot: string): ImportInfo[] {
@@ -311,15 +448,35 @@ export class ImportAnalyzer {
             /import\s*['"`]([^'"`]+)['"`]/g
         ];
 
-        const requirePattern = /(?:const|let|var)\s+.*?=\s*require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g;
+        // Dynamic import patterns for Vue components and lazy loading
+        const dynamicImportPatterns = [
+            // () => import('~/components/common/empty-data.vue')
+            /\(\s*\)\s*=>\s*import\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g,
+            // import('~/path')
+            /import\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g,
+            // require('~/assets/images/common/no-data.png')
+            /require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g
+        ];
 
-        // Process import patterns
+        const requirePattern = /(?:(?:const|let|var)\s+.*?|[\w$_]+\s*)=\s*require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g;
+
+        // Process standard import patterns
         importPatterns.forEach((pattern) => {
             let match;
             while ((match = pattern.exec(content)) !== null) {
                 // For patterns with 2 groups, source is in group 2, otherwise group 1
                 const source = match[2] || match[1];
                 imports.push(this.createImportInfo(source, fileDir, projectRoot, 'import'));
+            }
+        });
+
+        // Process dynamic import patterns
+        dynamicImportPatterns.forEach((pattern) => {
+            let match;
+            while ((match = pattern.exec(content)) !== null) {
+                const source = match[1];
+                const importType = pattern.source.includes('require') ? 'require' : 'dynamic-import';
+                imports.push(this.createImportInfo(source, fileDir, projectRoot, importType as 'import' | 'require'));
             }
         });
 
@@ -384,23 +541,24 @@ export class ImportAnalyzer {
         let aliasPath: string;
 
         if (source.startsWith('@/')) {
-            // @/ typically maps to src/ or project root
+            // @/ typically maps to srcDir or project root
             const withoutAlias = source.substring(2);
-            // Try src/ first, then project root
-            const srcPath = path.join(projectRoot, 'src', withoutAlias);
+            // Try srcDir first, then project root
+            const srcPath = path.join(projectRoot, this.nuxtSrcDir, withoutAlias);
             if (fs.existsSync(srcPath) || fs.existsSync(path.dirname(srcPath))) {
                 aliasPath = srcPath;
             } else {
                 aliasPath = path.join(projectRoot, withoutAlias);
             }
         } else if (source.startsWith('~/') || source.startsWith('~~/')) {
-            // ~/ and ~~/ typically map to project root
+            // ~/ and ~~/ ALWAYS map to srcDir for Nuxt.js projects (no fallback to project root)
             const withoutAlias = source.startsWith('~~/') ? source.substring(3) : source.substring(2);
-            aliasPath = path.join(projectRoot, withoutAlias);
+            // Map to srcDir (configured in nuxt.config)
+            aliasPath = path.join(projectRoot, this.nuxtSrcDir, withoutAlias);
         } else if (source.startsWith('#app/') || source.startsWith('#imports') || source.startsWith('#components/')) {
-            // Nuxt 3 specific aliases - map to project root for now
+            // Nuxt 3 specific aliases - ALWAYS map to srcDir (no fallback to project root)
             const withoutAlias = source.substring(source.indexOf('/') + 1);
-            aliasPath = path.join(projectRoot, withoutAlias || '');
+            aliasPath = path.join(projectRoot, this.nuxtSrcDir, withoutAlias || '');
         } else {
             return undefined;
         }
@@ -468,17 +626,214 @@ export class ImportAnalyzer {
     }
 
     private isCompiledFile(filePath: string): boolean {
-        // Skip .js files if corresponding .ts file exists (compiled output)
-        if (filePath.endsWith('.js')) {
-            const tsPath = filePath.replace('.js', '.ts');
-            if (fs.existsSync(tsPath)) {
-                return true; // This is a compiled file, skip it
+        // For TypeScript projects, skip .js files if corresponding .ts file exists
+        if (this.projectType === ProjectType.TYPESCRIPT || this.projectType === ProjectType.MIXED) {
+            if (filePath.endsWith('.js')) {
+                const tsPath = filePath.replace('.js', '.ts');
+                const tsxPath = filePath.replace('.js', '.tsx');
+                if (fs.existsSync(tsPath) || fs.existsSync(tsxPath)) {
+                    console.log(`🚫 Skipping compiled file: ${path.relative(this.projectRoot, filePath)}`);
+                    return true; // This is a compiled file, skip it
+                }
+            }
+            
+            if (filePath.endsWith('.jsx')) {
+                const tsxPath = filePath.replace('.jsx', '.tsx');
+                if (fs.existsSync(tsxPath)) {
+                    console.log(`🚫 Skipping compiled file: ${path.relative(this.projectRoot, filePath)}`);
+                    return true; // This is a compiled file, skip it
+                }
             }
         }
+        
+        // Skip files in common build directories
+        const relativePath = path.relative(this.projectRoot, filePath);
+        const buildDirs = ['dist/', 'build/', 'out/', 'lib/', '.next/', 'coverage/'];
+        if (buildDirs.some(dir => relativePath.startsWith(dir))) {
+            console.log(`🚫 Skipping file in build directory: ${relativePath}`);
+            return true;
+        }
+        
         return false;
     }
 
     private isSupportedFile(filePath: string): boolean {
         return this.supportedExtensions.some(ext => filePath.endsWith(ext));
+    }
+
+    /**
+     * Detect project type based on configuration files and file structure
+     */
+    private detectProjectType(projectRoot: string): ProjectType {
+        const packageJsonPath = path.join(projectRoot, 'package.json');
+        const tsconfigPath = path.join(projectRoot, 'tsconfig.json');
+        
+        // Check for TypeScript configuration
+        const hasTypeScript = fs.existsSync(tsconfigPath);
+        let hasTypeScriptDeps = false;
+        
+        // Check package.json for TypeScript dependencies
+        if (fs.existsSync(packageJsonPath)) {
+            try {
+                const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+                const allDeps = {
+                    ...packageJson.dependencies,
+                    ...packageJson.devDependencies
+                };
+                hasTypeScriptDeps = !!(allDeps.typescript || allDeps['@types/node'] || allDeps['ts-node']);
+            } catch (error) {
+                console.log('⚠️  Could not parse package.json:', error);
+            }
+        }
+        
+        // Analyze file distribution in project
+        const fileStats = this.analyzeFileDistribution(projectRoot);
+        
+        console.log(`📊 File distribution: TS: ${fileStats.tsFiles}, JS: ${fileStats.jsFiles}, Vue: ${fileStats.vueFiles}, Svelte: ${fileStats.svelteFiles}`);
+        
+        // Decision logic
+        if (hasTypeScript || hasTypeScriptDeps) {
+            if (fileStats.tsFiles > 0) {
+                return fileStats.jsFiles > 0 ? ProjectType.MIXED : ProjectType.TYPESCRIPT;
+            } else if (fileStats.jsFiles > 0) {
+                // Has TS config but no TS files, probably new project or compiled only
+                return ProjectType.TYPESCRIPT;
+            }
+        }
+        
+        // If we have both TS and JS files without TS config, it's mixed
+        if (fileStats.tsFiles > 0 && fileStats.jsFiles > 0) {
+            return ProjectType.MIXED;
+        }
+        
+        // Pure TypeScript project (only TS files)
+        if (fileStats.tsFiles > 0 && fileStats.jsFiles === 0) {
+            return ProjectType.TYPESCRIPT;
+        }
+        
+        // Check import/export patterns in JS files to distinguish CommonJS vs ES6
+        if (fileStats.jsFiles > 0) {
+            const jsModuleType = this.detectJavaScriptModuleType(projectRoot);
+            return jsModuleType;
+        }
+        
+        // Fallback to mixed if we can't determine
+        return ProjectType.MIXED;
+    }
+
+    /**
+     * Analyze file distribution in project
+     */
+    private analyzeFileDistribution(projectRoot: string): { tsFiles: number; jsFiles: number; vueFiles: number; svelteFiles: number } {
+        const stats = { tsFiles: 0, jsFiles: 0, vueFiles: 0, svelteFiles: 0 };
+        
+        const countFiles = (dir: string, depth: number = 0) => {
+            // Limit depth to avoid deep recursion
+            if (depth > 3) return;
+            
+            try {
+                const entries = fs.readdirSync(dir, { withFileTypes: true });
+                
+                for (const entry of entries) {
+                    const fullPath = path.join(dir, entry.name);
+                    
+                    if (entry.isDirectory()) {
+                        // Skip common build/dependency directories
+                        if (!this.shouldIgnoreDirectory(entry.name)) {
+                            countFiles(fullPath, depth + 1);
+                        }
+                    } else if (entry.isFile()) {
+                        if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) {
+                            stats.tsFiles++;
+                        } else if (entry.name.endsWith('.js') || entry.name.endsWith('.jsx')) {
+                            stats.jsFiles++;
+                        } else if (entry.name.endsWith('.vue')) {
+                            stats.vueFiles++;
+                        } else if (entry.name.endsWith('.svelte')) {
+                            stats.svelteFiles++;
+                        }
+                    }
+                }
+            } catch (error) {
+                // Skip directories we can't read
+            }
+        };
+        
+        countFiles(projectRoot);
+        return stats;
+    }
+
+    /**
+     * Detect JavaScript module type (CommonJS vs ES6)
+     */
+    private detectJavaScriptModuleType(projectRoot: string): ProjectType {
+        let requireCount = 0;
+        let importCount = 0;
+        let filesChecked = 0;
+        
+        const checkFiles = (dir: string, depth: number = 0) => {
+            // Limit depth and files checked for performance
+            if (depth > 2 || filesChecked > 20) return;
+            
+            try {
+                const entries = fs.readdirSync(dir, { withFileTypes: true });
+                
+                for (const entry of entries) {
+                    if (filesChecked > 20) break;
+                    
+                    const fullPath = path.join(dir, entry.name);
+                    
+                    if (entry.isDirectory() && !this.shouldIgnoreDirectory(entry.name)) {
+                        checkFiles(fullPath, depth + 1);
+                    } else if (entry.isFile() && (entry.name.endsWith('.js') || entry.name.endsWith('.jsx'))) {
+                        try {
+                            const content = fs.readFileSync(fullPath, 'utf-8');
+                            // Count require statements
+                            const requireMatches = content.match(/require\s*\(/g);
+                            if (requireMatches) requireCount += requireMatches.length;
+                            
+                            // Count import statements  
+                            const importMatches = content.match(/import\s+/g);
+                            if (importMatches) importCount += importMatches.length;
+                            
+                            filesChecked++;
+                        } catch (error) {
+                            // Skip files we can't read
+                        }
+                    }
+                }
+            } catch (error) {
+                // Skip directories we can't read
+            }
+        };
+        
+        checkFiles(projectRoot);
+        
+        // Determine module type based on usage patterns
+        if (requireCount > importCount * 2) {
+            return ProjectType.JAVASCRIPT_COMMONJS;
+        } else if (importCount > requireCount * 2) {
+            return ProjectType.JAVASCRIPT_ES6;
+        } else {
+            return ProjectType.MIXED;
+        }
+    }
+
+    /**
+     * Get supported extensions based on detected project type
+     */
+    private getSupportedExtensions(): string[] {
+        const baseExtensions = ['.vue', '.svelte']; // Always support these
+        
+        switch (this.projectType) {
+            case ProjectType.TYPESCRIPT:
+                return ['.ts', '.tsx', ...baseExtensions];
+            case ProjectType.JAVASCRIPT_COMMONJS:
+            case ProjectType.JAVASCRIPT_ES6:
+                return ['.js', '.jsx', ...baseExtensions];
+            case ProjectType.MIXED:
+            default:
+                return ['.js', '.jsx', '.ts', '.tsx', ...baseExtensions];
+        }
     }
 } 

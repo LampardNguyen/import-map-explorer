@@ -1,5 +1,5 @@
 ### 0.0.2
-* Update logo
+* Support multiple projects type nuxt, next, vue, reactjs
 
 ### 0.0.1
 * Initial Release
