@@ -3,6 +3,17 @@
   "displayName": "Import Map Explorer",
   "description": "Visualize import/require relationships between files in your project as an interactive map",
   "version": "0.0.1",
+  "publisher": "nguyen-duy-linh",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LampardNguyen/import-map-explorer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/LampardNguyen/import-map-explorer/issues"
+  },
+  "homepage": "https://github.com/LampardNguyen/import-map-explorer?tab=readme-ov-file#import-map-explorer",
+  "author": "LampardNguyen",
+  "icon": "images/icon.png",
   "engines": {
     "vscode": "^1.74.0"
   },

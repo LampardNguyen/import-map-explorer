@@ -2,6 +2,11 @@
 
 Extension VSCode để trực quan hóa mối quan hệ import/require giữa các file trong dự án của bạn dưới dạng bản đồ tương tác.
 
+## Demo
+
+![Import Map Explorer Demo](https://raw.githubusercontent.com/LampardNguyen/import-map-explorer/main/images/import-export.gif)
+
+
 ## Tính năng
 
 - 🗺️ **Bản đồ tương tác**: Hiển thị mối quan hệ import/require dưới dạng graph với canvas
@@ -122,9 +127,17 @@ npm run watch
 F5 trong VSCode để mở Extension Development Host
 ```
 
+## Change Log
+
+See Change Log [here](CHANGELOG.md)
+
 ## Đóng góp
 
-Chào mừng mọi đóng góp! Vui lòng tạo issue hoặc pull request.
+Chào mừng mọi đóng góp! Vui lòng tạo issue hoặc pull request [repo](https://github.com/LampardNguyen/import-map-explorer).
+
+## Issues
+
+Submit the [issues](https://github.com/LampardNguyen/import-map-explorer/issues) if you find any bug or have any suggestion.
 
 ## License
 
@@ -132,7 +145,7 @@ MIT License
 
 ## Tác giả
 
-Phát triển bởi [Your Name]
+Phát triển bởi LampardNguyen
 
 ---
 
