@@ -1,65 +1,70 @@
 # Import Map Explorer
 
-Extension VSCode để trực quan hóa mối quan hệ import/require giữa các file trong dự án của bạn dưới dạng bản đồ tương tác.
+A VSCode extension to visualize import/require relationships between files in your project as an interactive map.
 
 ## Demo
 
 ![Import Map Explorer Demo](https://github.com/LampardNguyen/import-map-explorer/blob/main/images/import-export.gif?raw=true)
 
+## Features
 
-## Tính năng
+* 🗺️ **Interactive Map**: Displays import/require relationships as a graph using canvas
+* 🔍 **Smart Analysis**: Supports both `import` and `require` statements
+* 📦 **Node Modules**: Shows dependencies from node\_modules
+* 🎯 **Focus on Current File**: View relationships of the currently open file
+* 🖱️ **Direct Interaction**: Double-click to open file, hover to view info
+* 📁 **Multi-format Support**: Supports .ts, .js, .tsx, .jsx, .vue, .svelte
+* 🚫 **Auto-Ignore .gitignore**: Ignores files/folders listed in .gitignore
 
-- 🗺️ **Bản đồ tương tác**: Hiển thị mối quan hệ import/require dưới dạng graph với canvas
-- 🔍 **Phân tích thông minh**: Hỗ trợ cả `import` và `require` statements  
-- 📦 **Node Modules**: Hiển thị cả dependencies từ node_modules
-- 🎯 **Focus trên file hiện tại**: Xem mối quan hệ của file đang mở
-- 🖱️ **Tương tác trực tiếp**: Click đúp để mở file, hover để xem thông tin
-- 📁 **Đa định dạng**: Hỗ trợ .ts, .js, .tsx, .jsx, .vue, .svelte
-- 🚫 **Tự động bỏ qua .gitignore**: Không phân tích file/folder được liệt kê trong .gitignore
+## How to Use
 
-## Cách sử dụng
+### 1. Show map for current file
 
-### 1. Hiển thị bản đồ cho file hiện tại
-- Mở file bất kỳ trong editor
-- Sử dụng Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
-- Tìm kiếm "Show Current File Import Map" 
-- Hoặc sử dụng phím tắt: `Ctrl+Shift+M` (Windows/Linux) / `Cmd+Shift+M` (Mac)
-- Hoặc chuột phải trong editor → "Show Current File Import Map"
+* Open any file in the editor
+* Use the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+* Search for "Show Current File Import Map"
+* Or use shortcut: `Ctrl+Shift+M` (Windows/Linux) / `Cmd+Shift+M` (Mac)
+* Or right-click in the editor → "Show Current File Import Map"
 
-### 2. Hiển thị bản đồ cho toàn bộ dự án
-- Chuột phải vào file trong Explorer → "Show Import Map"
-- Hoặc Command Palette → "Show Import Map"
+### 2. Show map for entire project
 
-### 3. Tương tác với bản đồ
-- **Zoom**: Sử dụng scroll wheel
-- **Pan**: Kéo thả để di chuyển view
-- **Click**: Chọn node để xem thông tin chi tiết
-- **Double click**: Mở file tương ứng
-- **Reset View**: Nút reset để về vị trí ban đầu
-- **Center on Current**: Tập trung vào file hiện tại
-- **Toggle Labels**: Ẩn/hiện tên file
+* Right-click a file in the Explorer → "Show Import Map"
+* Or use Command Palette → "Show Import Map"
 
-## Cách thức hoạt động
+### 3. Interact with the map
 
-Extension sẽ:
-1. **Đọc .gitignore**: Tự động đọc file .gitignore để bỏ qua các file/folder không cần thiết
-2. **Phân tích syntax**: Phân tích syntax của các file JavaScript/TypeScript
-3. **Trích xuất imports**: Trích xuất tất cả import/require statements
-4. **Xây dựng graph**: Xây dựng graph dependencies từ dữ liệu đã phân tích
-5. **Hiển thị Canvas**: Hiển thị bằng Canvas với layout tự động
-6. **Tương tác real-time**: Cho phép tương tác trực tiếp với bản đồ
+* **Zoom**: Use scroll wheel
+* **Pan**: Drag to move view
+* **Click**: Select node to view details
+* **Double-click**: Open corresponding file
+* **Reset View**: Reset button to return to default position
+* **Center on Current**: Focus on current file
+* **Toggle Labels**: Show/hide file names
 
-## Hỗ trợ .gitignore
+## How It Works
 
-Extension tự động đọc và tuân thủ file `.gitignore` trong thư mục gốc của dự án:
+The extension will:
 
-### Patterns được hỗ trợ
-- ✅ **Wildcard patterns**: `*.js`, `*.log`, `temp*`
-- ✅ **Directory patterns**: `node_modules/`, `dist/`, `build/`
-- ✅ **Absolute patterns**: `/config.local.js`
-- ✅ **Negation patterns**: `!important.js` (file được phép dù match pattern khác)
+1. **Read .gitignore**: Automatically reads .gitignore to skip unnecessary files/folders
+2. **Syntax Analysis**: Parses JavaScript/TypeScript file syntax
+3. **Extract Imports**: Extracts all import/require statements
+4. **Build Graph**: Constructs dependency graph from parsed data
+5. **Render Canvas**: Displays using canvas with automatic layout
+6. **Real-time Interaction**: Allows direct interaction with the map
 
-### Ví dụ .gitignore
+## .gitignore Support
+
+The extension automatically reads and respects the `.gitignore` file in your project root:
+
+### Supported Patterns
+
+* ✅ **Wildcard patterns**: `*.js`, `*.log`, `temp*`
+* ✅ **Directory patterns**: `node_modules/`, `dist/`, `build/`
+* ✅ **Absolute patterns**: `/config.local.js`
+* ✅ **Negation patterns**: `!important.js` (file is allowed even if matched by another pattern)
+
+### Example .gitignore
+
 ```gitignore
 # Dependencies
 node_modules/
@@ -81,33 +86,34 @@ logs/
 temp/
 *.tmp
 
-# Exception - file quan trọng không bỏ qua
+# Exception - important file not ignored
 !important.config.js
 ```
 
-### Hoạt động
-- 🚫 **File bị bỏ qua**: Không được phân tích hoặc hiển thị trong bản đồ
-- 📁 **Folder bị bỏ qua**: Toàn bộ nội dung folder không được duyệt
-- 🔗 **Import bị bỏ qua**: Import đến file bị gitignore cũng bị bỏ qua
-- 📝 **Console log**: Hiển thị thông tin về file/folder bị bỏ qua trong Developer Console
+### Behavior
 
-## Các loại node
+* 🚫 **Ignored Files**: Not analyzed or displayed on map
+* 📁 **Ignored Folders**: Entire folder content skipped
+* 🔗 **Ignored Imports**: Imports to ignored files are skipped
+* 📝 **Console Log**: Skipped files/folders shown in Developer Console
 
-- 🔵 **File thường**: Các file trong dự án của bạn
-- 🔷 **File hiện tại**: File đang được focus (màu xanh đậm)
-- 🟠 **Node Module**: Dependencies từ node_modules
+## Node Types
 
-## Yêu cầu
+* 🔵 **Regular File**: Files in your project
+* 🔷 **Current File**: The file currently focused (bold blue)
+* 🟠 **Node Module**: Dependencies from node\_modules
 
-- Visual Studio Code 1.74.0 trở lên
-- Dự án có chứa các file JavaScript/TypeScript
-- File .gitignore (tuỳ chọn) - nếu có sẽ được tự động áp dụng
+## Requirements
+
+* Visual Studio Code 1.74.0 or higher
+* Project with JavaScript/TypeScript files
+* .gitignore file (optional) – used if available
 
 ## Extension Settings
 
-Hiện tại extension không có settings đặc biệt. Tất cả cấu hình được tự động detect.
+Currently, the extension has no specific settings. All configurations are auto-detected.
 
-## Phát triển
+## Development
 
 ```bash
 # Clone repository
@@ -124,29 +130,26 @@ npm run compile
 npm run watch
 
 # Debug extension
-F5 trong VSCode để mở Extension Development Host
+Press F5 in VSCode to open Extension Development Host
 ```
 
 ## Change Log
 
 See Change Log [here](CHANGELOG.md)
 
-## Đóng góp
+## Contribution
 
-Chào mừng mọi đóng góp! Vui lòng tạo issue hoặc pull request [repo](https://github.com/LampardNguyen/import-map-explorer).
+Contributions are welcome! Please create an issue or pull request on the [repo](https://github.com/LampardNguyen/import-map-explorer).
 
 ## Issues
 
-Submit the [issues](https://github.com/LampardNguyen/import-map-explorer/issues) if you find any bug or have any suggestion.
+Submit [issues](https://github.com/LampardNguyen/import-map-explorer/issues) if you find any bugs or have suggestions.
 
 ## License
 
 MIT License
 
-## Tác giả
+## Author
 
-Phát triển bởi LampardNguyen
+Developed by LampardNguyen
 
----
-
-**Enjoy visualizing your code dependencies!** 🚀 
