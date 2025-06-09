@@ -1,3 +1,6 @@
+### 0.0.3
+* Reduce package size
+
 ### 0.0.2
 * Support multiple projects type nuxt, next, vue, reactjs
 
