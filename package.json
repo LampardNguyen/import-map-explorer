@@ -2,7 +2,7 @@
   "name": "import-map-explorer",
   "displayName": "Import Map Explorer",
   "description": "Visualize import/require relationships between files in your project as an interactive map",
-  "version": "0.0.3",
+  "version": "0.0.31",
   "publisher": "nguyen-duy-linh",
   "repository": {
     "type": "git",

@@ -1,3 +1,6 @@
+### 0.0.31
+* Change Readme content
+
 ### 0.0.3
 * Reduce package size
 
